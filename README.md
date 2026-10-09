@@ -38,8 +38,22 @@ Maus + Tastatur und Xbox-Controller funktionieren gleichzeitig. Das HUD zeigt di
 | Ein-/Aussteigen, Telefon | F / Enter | Y |
 | Waffe wechseln | Q / E, Mausrad, 1–5 | LB / RB |
 | Pause / Steuerung | Esc oder P / H | Start / Back |
+| Grafikqualität hoch/niedrig | G | – |
 
 Bei Treffern, Crashs und Explosionen vibriert der Controller (Rumble).
+
+## Grafik
+
+Alle Grafiken werden beim Spielstart prozedural erzeugt, es gibt keine Bilddateien.
+
+* **Texturen:** nahtlose Texturen für Asphalt, Gehwegplatten, Pflaster, Gras und Dachkies.
+* **Straßen:** Risse, Ölflecken, Gullydeckel, Bordsteine mit Rinnsteinen, abgenutzte Markierungen, Haltelinien und Zebrastreifen.
+* **Schatten & Licht:** Gebäude und Bäume werfen gebackene Schatten mit weicher Kante, an den Hauswänden gibt es Umgebungsverdeckung.
+* **Gebäude:** perspektivische Fassaden mit Fensterreihen, die nachts teilweise beleuchtet sind. Auf den Dächern stehen Brüstungen, Klimaanlagen, Wassertanks, Oberlichter und Treppenhäuser.
+* **Fahrzeuge:** detaillierte Sprites mit Karosserie-Wölbung, Glas und Reflexen, Rädern, Spiegeln, Lichtern, Lackierungen und Schadensstufen (Kratzer, Ruß, Wrack). Dazu kommen weiche Schatten, Bremslichter und Blaulichtbalken.
+* **Tag/Nacht-Zyklus:** Ein Spieltag dauert 12 Minuten. Es gibt goldenes Abendlicht, und nachts eine Lightmap mit Straßenlaternen, Scheinwerferkegeln, Rücklichtern, Blaulicht, Feuer, Explosionen und Mündungsfeuer. Dazu kommen Lampen-Halos und eine Vignette.
+* **Effekte:** weiche Partikel für Rauch, Feuer und Funken sowie Blutspritzer-Decals.
+* **Qualitätsstufe:** Bei schwacher Hardware sinkt sie automatisch auf „Niedrig“. Mit **G** schaltest du sie manuell um.
 
 ## Features
 
@@ -57,6 +71,10 @@ Bei Treffern, Crashs und Explosionen vibriert der Controller (Rumble).
   * Ab 2★ schießen Cops, Streifenwagen jagen dich über ein BFS-Flow-Field durch das Straßennetz, rammen dich und setzen Beamte ab.
   * Ab 3★ tragen Cops Maschinenpistolen, ab 4★ kommen SWAT-Vans.
   * Bleibst du außer Sicht, sinkt das Level Stern für Stern. Die Sterne blinken, solange du unentdeckt bist.
+  * Die Polizei ist bewusst fair abgestimmt: Es kommen weniger Einheiten, Cops zielen ungenauer, schießen seltener und machen weniger Schaden. Nach Sichtkontakt reagieren sie verzögert, und die Festnahme dauert länger.
+  * Aus der Sicht der Polizei zu verschwinden, geht schneller.
+  * **Spray-Shops** (orange auf der Minimap): Fährst du hinein, ist für $200 die Fahndung gelöscht, das Auto repariert und neu lackiert.
+  * Deine Gesundheit regeneriert sich langsam bis 70 %, wenn du 5 Sekunden lang keinen Schaden nimmst.
 * **Fraktionen:**
   * Neon Serpents, Iron Kings und Ghost Cartel liegen im Kreis miteinander im Krieg: Die Serpents hassen die Kings, die Kings das Cartel, das Cartel die Serpents.
   * Tötest du Mitglieder einer Gang, sinkt dein Respekt bei ihr und steigt bei ihrem Erzfeind.
@@ -93,9 +111,12 @@ src/
     Camera.ts             Follow-Kamera, Speed-Zoom, Screenshake
     Sound.ts              synthetische WebAudio-Effekte + Sirene
     math.ts               Helfer, Seeded RNG
+  render/
+    Textures.ts           prozedurale Texturen, Auto-/Baum-/Licht-/Partikel-Sprites
+    Lighting.ts           Tag/Nacht-Zyklus, Lightmap, Vignette
   world/
-    City.ts               Tilemap-Generator, Kollision, Spurgeometrie, Flow-Field
-    CityRenderer.ts       Boden + Pseudo-3D-Gebäude
+    City.ts               Tilemap-Generator, Kollision, Spurgeometrie, Flow-Field, Laternen, Spray-Shops
+    CityRenderer.ts       gecachte Boden-Chunks (Texturen, Schatten, Details) + Pseudo-3D-Gebäude
   entities/               Ped, Vehicle, Projectile, Pickup
   systems/
     PlayerController.ts   Laufen/Zielen/Schießen, Ein-/Aussteigen, Fahren

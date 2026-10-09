@@ -54,6 +54,10 @@ export class City {
   hospital: SpecialPoint = { x: 0, y: 0 };
   policeStation: SpecialPoint = { x: 0, y: 0 };
   pickupSpots: SpecialPoint[] = [];
+  /** Street lamps: position of the pole and the lit spot over the road. */
+  lamps: { x: number; y: number; lx: number; ly: number }[] = [];
+  /** Spray shops: drive in to lose the cops and repair the car. */
+  sprayShops: SpecialPoint[] = [];
 
   private flow: Int32Array;
   private queue: Int32Array;
@@ -111,6 +115,21 @@ export class City {
     }
     this.hospital = this.findTileNear(this.w * 0.5 * TILE, this.h * 0.25 * TILE, Tile.Sidewalk);
     this.policeStation = this.findTileNear(this.w * 0.5 * TILE, this.h * 0.8 * TILE, Tile.Sidewalk);
+
+    // Street lamps on sidewalks next to roads
+    for (let ty = 0; ty < this.h; ty++) {
+      for (let tx = 0; tx < this.w; tx++) {
+        if (this.get(tx, ty) !== Tile.Sidewalk || (tx + ty) % 3 !== 0) continue;
+        const cx = (tx + 0.5) * TILE, cy = (ty + 0.5) * TILE;
+        const n = [[-1, 0], [1, 0], [0, -1], [0, 1]].find(([dx, dy]) => this.get(tx + dx, ty + dy) === Tile.Road);
+        if (!n) continue;
+        this.lamps.push({ x: cx + n[0] * 24, y: cy + n[1] * 24, lx: cx + n[0] * 58, ly: cy + n[1] * 58 });
+      }
+    }
+
+    // Spray shops (one per district, plus one central)
+    const shopAt = [[0.17, 0.75], [0.5, 0.55], [0.83, 0.3], [0.5, 0.08]];
+    for (const [fx, fy] of shopAt) this.sprayShops.push(this.findTileNear(fx * this.w * TILE, fy * this.h * TILE, Tile.Sidewalk));
 
     for (let i = 0; i < 400 && this.pickupSpots.length < 34; i++) {
       const tx = Math.floor(rng() * this.w), ty = Math.floor(rng() * this.h);

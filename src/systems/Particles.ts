@@ -4,6 +4,7 @@
 // ---------------------------------------------------------------------------
 
 import { rand } from '../core/math';
+import { softSprite, splatSprite } from '../render/Textures';
 
 interface Particle {
   x: number; y: number; vx: number; vy: number;
@@ -12,6 +13,7 @@ interface Particle {
 }
 
 interface Decal { kind: 'blood' | 'scorch' | 'oil'; x: number; y: number; r: number; a: number }
+export interface Light { x: number; y: number; radius: number; r: number; g: number; b: number; life: number; max: number }
 interface Skid { x1: number; y1: number; x2: number; y2: number; a: number }
 
 const MAX_PARTICLES = 1400;
@@ -23,6 +25,12 @@ export class Particles {
   private skids: Skid[] = [];
   private skidHead = 0;
   private decals: Decal[] = [];
+  lights: Light[] = [];
+
+  addLight(x: number, y: number, radius: number, r: number, g: number, b: number, life: number) {
+    if (this.lights.length > 60) this.lights.shift();
+    this.lights.push({ x, y, radius, r, g, b, life, max: life });
+  }
 
   private add(p: Partial<Particle> & { x: number; y: number }) {
     if (this.list.length >= MAX_PARTICLES) this.list.shift();
@@ -53,10 +61,12 @@ export class Particles {
   }
 
   muzzle(x: number, y: number, angle: number, color = '#fff2a8') {
+    this.addLight(x, y, 90, 255, 220, 150, 0.07);
     this.add({ x: x + Math.cos(angle) * 4, y: y + Math.sin(angle) * 4, life: 0.06, size: 6, color, glow: true });
   }
 
   empBlast(x: number, y: number, r: number) {
+    this.addLight(x, y, r * 2.4, 90, 220, 255, 0.5);
     for (let i = 0; i < 40; i++) {
       const a = (i / 40) * Math.PI * 2;
       this.add({ x, y, vx: Math.cos(a) * r * 2.5, vy: Math.sin(a) * r * 2.5, life: 0.4, size: 3, color: '#7fe9ff', drag: 3, glow: true, high: true });
@@ -65,6 +75,7 @@ export class Particles {
   }
 
   explosion(x: number, y: number, size = 1) {
+    this.addLight(x, y, 340 * size, 255, 170, 70, 0.9);
     for (let i = 0; i < 26 * size; i++) {
       const a = Math.random() * Math.PI * 2, s = rand(40, 280) * size;
       this.add({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rand(0.3, 0.8), size: rand(6, 14) * size, grow: -8, color: pick3('#ffef8a', '#ff9a1a', '#ff4d1a'), drag: 3, high: true, glow: true });
@@ -100,6 +111,8 @@ export class Particles {
       p.size = Math.max(0.1, p.size + p.grow * dt);
     }
     this.list = this.list.filter((p) => p.life > 0);
+    for (const l of this.lights) l.life -= dt;
+    this.lights = this.lights.filter((l) => l.life > 0);
   }
 
   drawDecals(ctx: CanvasRenderingContext2D, v: { x0: number; y0: number; x1: number; y1: number }) {
@@ -113,14 +126,18 @@ export class Particles {
       ctx.lineTo(s.x2, s.y2);
     }
     ctx.stroke();
-    for (const d of this.decals) {
+    for (let i = 0; i < this.decals.length; i++) {
+      const d = this.decals[i];
       if (d.x < v.x0 - d.r || d.x > v.x1 + d.r || d.y < v.y0 - d.r || d.y > v.y1 + d.r) continue;
-      if (d.kind === 'blood') ctx.fillStyle = 'rgba(110,0,0,0.75)';
-      else if (d.kind === 'scorch') ctx.fillStyle = 'rgba(10,10,10,0.55)';
-      else ctx.fillStyle = 'rgba(20,20,30,0.5)';
-      ctx.beginPath();
-      ctx.ellipse(d.x, d.y, d.r, d.r * 0.8, (d.x * 13) % 3, 0, Math.PI * 2);
-      ctx.fill();
+      if (d.kind === 'blood') {
+        const r = d.r * 1.8;
+        ctx.drawImage(splatSprite(Math.floor(d.x + d.y)), d.x - r, d.y - r, r * 2, r * 2);
+      } else {
+        const r = d.r * 1.6;
+        ctx.globalAlpha = d.kind === 'scorch' ? 0.85 : 0.5;
+        ctx.drawImage(softSprite('rgba(8,6,5,0.9)'), d.x - r, d.y - r, r * 2, r * 2);
+        ctx.globalAlpha = 1;
+      }
     }
   }
 
@@ -130,10 +147,15 @@ export class Particles {
       const t = p.life / p.max;
       ctx.globalAlpha = Math.min(1, t * 1.5);
       if (p.glow) ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fill();
+      if (p.size <= 2.6) {
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        const r = p.size * 1.6;
+        ctx.drawImage(softSprite(p.color), p.x - r, p.y - r, r * 2, r * 2);
+      }
       ctx.globalCompositeOperation = 'source-over';
     }
     ctx.globalAlpha = 1;

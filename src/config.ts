@@ -110,21 +110,23 @@ export const CIVILIAN_MODELS: VehicleModelId[] = ['sedan', 'sedan', 'sedan', 'ta
 /** Heat needed for 1..5 stars. Index 0 = 0 stars. */
 export const WANTED_THRESHOLDS = [0, 20, 120, 260, 420, 600];
 export const WANTED_MAX_HEAT = 720;
-export const POLICE_CARS_PER_STAR = [0, 1, 2, 3, 5, 7];
-export const POLICE_FOOT_PER_STAR = [0, 2, 3, 4, 5, 6];
+export const POLICE_CARS_PER_STAR = [0, 0, 1, 2, 3, 4];
+export const POLICE_FOOT_PER_STAR = [0, 1, 2, 2, 3, 4];
+/** Cost of a respray (clears wanted level, repairs the car). */
+export const SPRAY_COST = 200;
 
 export const CRIME = {
-  shot: 3,
+  shot: 2,
   hitPed: 15,
   killCivilian: 45,
   killGang: 18,
-  killCop: 110,
+  killCop: 80,
   carjack: 25,
   carjackCop: 120,
   destroyCar: 30,
   destroyPolice: 130,
   ramPolice: 12,
-  punchCop: 40,
+  punchCop: 30,
   bigHeist: 260,
 };
 

@@ -261,6 +261,7 @@ export class HUD {
 
     for (const ph of g.city.payphones) dot(ph.x, ph.y, 4, FACTIONS[ph.faction].color);
     dot(g.city.hospital.x, g.city.hospital.y, 3.5, '#ff4d4d');
+    for (const s of g.city.sprayShops) dot(s.x, s.y, 3.5, '#ff9a1a');
     dot(g.city.policeStation.x, g.city.policeStation.y, 3.5, '#4d8bff');
     const blink = Math.floor(g.time * 6) % 2 === 0;
     for (const v of g.vehicles) {
@@ -298,6 +299,7 @@ export class HUD {
     ctx.strokeRect(x0, y0, size, size);
     const d = g.city.district(px);
     this.text(ctx, `Revier: ${FACTIONS[d].name}`, x0 + size / 2, y0 - 10, 12, FACTIONS[d].color, 'center');
+    this.text(ctx, `🕒 ${g.lighting.clock()}`, x0 + size, y0 - 28, 13, '#ddd', 'right', '600');
   }
 
   private drawHints(ctx: CanvasRenderingContext2D) {
@@ -364,6 +366,7 @@ export class HUD {
       ['Ein-/Aussteigen, Telefon', 'F / Enter', 'Y'],
       ['Waffe wechseln', 'Q / E, Mausrad, 1–5', 'LB / RB'],
       ['Pause / Hilfe', 'Esc, P / H', 'Start / Back'],
+      ['Grafikqualität', 'G', '–'],
     ];
     rows.forEach((r, i) => {
       const col = i === 0 ? '#ffd400' : '#ddd';
@@ -378,24 +381,24 @@ export class HUD {
     const g = this.g;
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     ctx.fillRect(0, 0, g.width, g.height);
-    const { x, y } = this.panel(ctx, 700, 520);
+    const { x, y } = this.panel(ctx, 700, 560);
     this.text(ctx, 'NEON GRID', g.width / 2, y + 50, 56, '#ffd400', 'center', '900');
     this.text(ctx, 'Ein GTA2-inspirierter Top-Down-Prototyp', g.width / 2, y + 92, 16, '#ccc', 'center', 'normal');
     this.controlsTable(ctx, x + 30, y + 135);
-    this.text(ctx, '☎ Telefone = Jobs der Gangs · Driften lädt Nitro · EMP legt Autos lahm', g.width / 2, y + 420, 14, '#9fe8ff', 'center', 'normal');
+    this.text(ctx, '☎ Telefone = Gang-Jobs · Driften lädt Nitro · EMP legt Autos lahm · SPRAY-Shop löscht Fahndung', g.width / 2, y + 448, 14, '#9fe8ff', 'center', 'normal');
     const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 250);
     ctx.globalAlpha = pulse;
-    this.text(ctx, 'ENTER / Klick  oder  Ⓐ  zum Starten', g.width / 2, y + 470, 22, '#fff', 'center');
+    this.text(ctx, 'ENTER / Klick  oder  Ⓐ  zum Starten', g.width / 2, y + 500, 22, '#fff', 'center');
     ctx.globalAlpha = 1;
-    if (g.input.padConnected) this.text(ctx, '🎮 Controller erkannt', g.width / 2, y + 500, 13, '#7dff7d', 'center', 'normal');
+    if (g.input.padConnected) this.text(ctx, '🎮 Controller erkannt', g.width / 2, y + 535, 13, '#7dff7d', 'center', 'normal');
   }
 
   private drawHelp(ctx: CanvasRenderingContext2D) {
     const g = this.g;
-    const { x, y } = this.panel(ctx, 700, 340);
+    const { x, y } = this.panel(ctx, 700, 370);
     this.text(ctx, 'STEUERUNG', g.width / 2, y + 28, 24, '#ffd400', 'center');
     this.controlsTable(ctx, x + 30, y + 64);
-    this.text(ctx, `${this.key('H', 'Back')} zum Schließen`, g.width / 2, y + 325, 13, '#aaa', 'center', 'normal');
+    this.text(ctx, `${this.key('H', 'Back')} zum Schließen`, g.width / 2, y + 355, 13, '#aaa', 'center', 'normal');
   }
 
   private drawPause(ctx: CanvasRenderingContext2D) {

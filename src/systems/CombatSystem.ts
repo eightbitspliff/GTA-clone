@@ -34,7 +34,7 @@ export class CombatSystem {
     const w = WEAPONS[shooter.weapon];
     if (!shooter.hasAmmo()) return false;
     // NPCs fire slower than the player so firefights stay readable
-    shooter.cooldown = (1 / w.rate) * (shooter.kind === 'player' ? 1 : 2.4);
+    shooter.cooldown = (1 / w.rate) * (shooter.kind === 'player' ? 1 : shooter.kind === 'cop' ? 3 : 2.4);
 
     if (w.id === 'fists') {
       if (vehicle) return false;
@@ -154,6 +154,9 @@ export class CombatSystem {
     if (!p.alive) return;
     if (p === g.player) {
       if (g.state !== 'play') return;
+      // NPC gunfire is toned down against the player
+      if (cause === 'bullet' && attacker && attacker !== p) amount *= attacker.kind === 'cop' ? 0.45 : 0.55;
+      p.lastHurt = g.time;
       const absorbed = Math.min(p.armor, amount * 0.7);
       p.armor -= absorbed;
       amount -= absorbed;

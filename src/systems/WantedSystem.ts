@@ -28,7 +28,7 @@ export class WantedSystem {
 
   /** Seconds out of sight needed to lose one star. */
   get escapeTime() {
-    return 7 + this.stars * 2.5;
+    return 4 + this.stars * 1.6;
   }
 
   crime(amount: number) {
@@ -79,6 +79,7 @@ export class WantedSystem {
     if (this.seen) this.unseen = 0;
     else {
       this.unseen += dt;
+      this.heat = Math.max(WANTED_THRESHOLDS[stars], this.heat - dt * 6);
       if (this.unseen > this.escapeTime) {
         this.heat = WANTED_THRESHOLDS[stars] - 1;
         this.unseen = 0;
@@ -98,7 +99,7 @@ export class WantedSystem {
     const px = g.playerX, py = g.playerY;
     for (const p of g.peds) {
       if (p.kind !== 'cop' || !p.alive) continue;
-      const range = p.vehicle ? 620 : 480;
+      const range = p.vehicle ? 480 : 380;
       if (dist2(p.x, p.y, px, py) > range * range) continue;
       if (g.city.lineOfSight(p.x, p.y, px, py)) return true;
     }

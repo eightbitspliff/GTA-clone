@@ -32,6 +32,7 @@ export interface Controls {
   pause: boolean;
   help: boolean;
   confirm: boolean;
+  quality: boolean;
 }
 
 // Standard gamepad button indices (Xbox layout)
@@ -167,6 +168,7 @@ export class Input {
       weaponSlot: slot,
       pause: this.kp('Escape', 'KeyP'),
       help: this.kp('KeyH'),
+      quality: this.kp('KeyG'),
       confirm: this.kp('Enter', 'Space', 'Mouse0'),
     };
 

@@ -7,7 +7,7 @@ import { CRIME, PED_RADIUS } from '../config';
 import type { Game } from '../core/Game';
 import { clamp, dist2 } from '../core/math';
 import { Vehicle } from '../entities/Vehicle';
-import { shadeColor } from '../world/CityRenderer';
+import { CAR_SCALE, SUN, carShadow, carSprite } from '../render/Textures';
 
 type View = { x0: number; y0: number; x1: number; y1: number };
 
@@ -291,85 +291,49 @@ export class VehicleSystem {
 
   private drawVehicle(ctx: CanvasRenderingContext2D, v: Vehicle, time: number) {
     const L = v.model.length, W = v.model.width;
+    // soft shadow, offset along the sun direction
+    const sh = carShadow(v.model);
+    ctx.save();
+    ctx.translate(v.x + SUN.x * 5, v.y + SUN.y * 5);
+    ctx.rotate(v.angle);
+    ctx.drawImage(sh, -sh.width / 4, -sh.height / 4, sh.width / 2, sh.height / 2);
+    ctx.restore();
+
+    const state = v.destroyed ? 'wreck' : v.hp < v.model.hp * 0.45 ? 'damaged' : 'ok';
+    const spr = carSprite(v.model, v.color, state);
     ctx.save();
     ctx.translate(v.x, v.y);
     ctx.rotate(v.angle);
+    ctx.drawImage(spr, -spr.width / CAR_SCALE / 2, -spr.height / CAR_SCALE / 2, spr.width / CAR_SCALE, spr.height / CAR_SCALE);
 
-    // shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    roundRect(ctx, -L / 2 + 3, -W / 2 + 4, L, W, 6);
-    ctx.fill();
-
-    const body = v.destroyed ? '#262626' : v.color;
-    ctx.fillStyle = body;
-    roundRect(ctx, -L / 2, -W / 2, L, W, 6);
-    ctx.fill();
-    ctx.strokeStyle = shadeColor(v.destroyed ? '#262626' : v.color, -0.45);
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    const id = v.model.id;
     if (!v.destroyed) {
-      if (id === 'truck') {
-        // cab + cargo box
-        ctx.fillStyle = shadeColor(v.color, 0.15);
-        ctx.fillRect(-L / 2 + 2, -W / 2 + 2, L * 0.62, W - 4);
-        ctx.fillStyle = '#1d2a35';
-        ctx.fillRect(L * 0.22, -W / 2 + 3, 7, W - 6);
-      } else {
-        // windscreens + roof
-        ctx.fillStyle = '#1d2a35';
-        ctx.fillRect(L * 0.08, -W / 2 + 3, L * 0.16, W - 6);
-        ctx.fillRect(-L * 0.36, -W / 2 + 3, L * 0.1, W - 6);
-        let roof = shadeColor(v.color, 0.1);
-        if (id === 'police') roof = '#f2f2f2';
-        if (id === 'van' || id === 'swat' || id === 'armored') {
-          ctx.fillStyle = roof;
-          ctx.fillRect(-L * 0.42, -W / 2 + 2, L * 0.5, W - 4);
-        } else {
-          ctx.fillStyle = roof;
-          ctx.fillRect(-L * 0.26, -W / 2 + 3, L * 0.34, W - 6);
-        }
-      }
-      if (id === 'taxi') {
-        ctx.fillStyle = '#222';
-        ctx.fillRect(-5, -4, 9, 8);
-      }
-      if (id === 'armored') {
-        ctx.fillStyle = '#d4b44a';
-        ctx.fillRect(-L * 0.4, -2, L * 0.45, 4);
-      }
-      if (id === 'sports') {
-        ctx.fillStyle = 'rgba(255,255,255,0.75)';
-        ctx.fillRect(-L / 2 + 2, -2, L - 4, 1.5);
-        ctx.fillRect(-L / 2 + 2, 1, L - 4, 1.5);
+      // brake lights
+      if (v.throttle < 0 || (v.handbrake && v.speed > 20)) {
+        ctx.fillStyle = '#ff2a1a';
+        ctx.fillRect(-L / 2 + 0.3, -W / 2 + 1.6, 1.8, 3.6);
+        ctx.fillRect(-L / 2 + 0.3, W / 2 - 5.2, 1.8, 3.6);
       }
       if (v.isPolice) {
+        // light bar
         const on = v.siren && Math.floor(time * 8) % 2 === 0;
-        ctx.fillStyle = v.siren ? (on ? '#ff2a2a' : '#5a0a0a') : '#7a1a1a';
-        ctx.fillRect(-4, -W / 2 + 3, 5, W / 2 - 3);
-        ctx.fillStyle = v.siren ? (!on ? '#2a6bff' : '#0a1a5a') : '#1a2a7a';
-        ctx.fillRect(-4, 0, 5, W / 2 - 3);
+        ctx.fillStyle = '#222';
+        ctx.fillRect(-5, -W / 2 + 3, 6, W - 6);
+        ctx.fillStyle = v.siren ? (on ? '#ff3030' : '#601010') : '#702020';
+        ctx.fillRect(-4.5, -W / 2 + 3.5, 5, W / 2 - 4);
+        ctx.fillStyle = v.siren ? (!on ? '#3070ff' : '#102060') : '#203070';
+        ctx.fillRect(-4.5, 0.5, 5, W / 2 - 4);
         if (v.siren) {
           ctx.globalCompositeOperation = 'lighter';
-          ctx.fillStyle = on ? 'rgba(255,40,40,0.25)' : 'rgba(40,100,255,0.25)';
+          ctx.fillStyle = on ? 'rgba(255,40,40,0.35)' : 'rgba(40,100,255,0.35)';
           ctx.beginPath();
-          ctx.arc(-2, on ? -W / 4 : W / 4, 22, 0, Math.PI * 2);
+          ctx.arc(-2, on ? -W / 4 : W / 4, 16, 0, Math.PI * 2);
           ctx.fill();
           ctx.globalCompositeOperation = 'source-over';
         }
       }
-      // lights
-      ctx.fillStyle = '#fff6c2';
-      ctx.fillRect(L / 2 - 3, -W / 2 + 2, 3, 4);
-      ctx.fillRect(L / 2 - 3, W / 2 - 6, 3, 4);
-      ctx.fillStyle = v.throttle < 0 ? '#ff3030' : '#8a1414';
-      ctx.fillRect(-L / 2, -W / 2 + 2, 2.5, 4);
-      ctx.fillRect(-L / 2, W / 2 - 6, 2.5, 4);
-
       if (v.empTimer > 0) {
         ctx.strokeStyle = `rgba(120,230,255,${0.5 + 0.5 * Math.sin(time * 40)})`;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
         for (let i = 0; i < 4; i++) {
           const a = time * 20 + i * 1.7;
@@ -378,20 +342,7 @@ export class VehicleSystem {
         }
         ctx.stroke();
       }
-    } else {
-      ctx.fillStyle = '#111';
-      ctx.fillRect(-L * 0.3, -W / 2 + 3, L * 0.5, W - 6);
     }
     ctx.restore();
   }
-}
-
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
 }

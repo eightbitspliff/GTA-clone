@@ -17,6 +17,7 @@ import { VehicleSystem } from '../systems/VehicleSystem';
 import { WantedSystem } from '../systems/WantedSystem';
 import { HUD } from '../ui/HUD';
 import { CityRenderer } from '../world/CityRenderer';
+import { Lighting } from '../render/Lighting';
 import { City } from '../world/City';
 import { Camera } from './Camera';
 import { Controls, Input } from './Input';
@@ -37,6 +38,7 @@ export class Game {
   city: City;
   cityRenderer: CityRenderer;
   particles = new Particles();
+  lighting = new Lighting();
 
   peds: Ped[] = [];
   vehicles: Vehicle[] = [];
@@ -49,6 +51,9 @@ export class Game {
   state: GameState = 'title';
   paused = false;
   showHelp = false;
+  /** 'high' = full lighting/vignette/facade detail; drops to 'low' automatically on slow machines. */
+  quality: 'high' | 'low' = 'high';
+  private slowTime = 0;
   controls!: Controls;
 
   downTimer = 0;
@@ -72,7 +77,7 @@ export class Game {
   fps = 60;
 
   constructor(private canvas: HTMLCanvasElement) {
-    this.ctx = canvas.getContext('2d')!;
+    this.ctx = canvas.getContext('2d', { alpha: false })!;
     this.input = new Input(canvas);
     this.input.onFirstGesture = () => this.sound.unlock();
     this.input.onDeviceMessage = (m) => this.message(m, '#9fe8ff');
@@ -97,6 +102,7 @@ export class Game {
     this.peds.push(this.player);
 
     this.camera.snap(start.x, start.y);
+    this.cityRenderer.prewarm(start.x, start.y, 1400);
     this.combat.spawnWorldPickups();
     this.ai.populateInitial();
 
@@ -211,6 +217,7 @@ export class Game {
     this.wanted.clear();
     this.ai.clearPolice();
     this.camera.snap(p.x, p.y);
+    this.cityRenderer.prewarm(p.x, p.y, 1200);
     this.state = 'play';
   }
 
@@ -229,6 +236,10 @@ export class Game {
     } else {
       if (c.pause) this.paused = !this.paused;
       if (c.help) this.showHelp = !this.showHelp;
+      if (c.quality) {
+        this.quality = this.quality === 'high' ? 'low' : 'high';
+        this.message(`Grafikqualität: ${this.quality === 'high' ? 'Hoch' : 'Niedrig'}`, '#9fe8ff');
+      }
       if (!this.paused) this.update(dt);
     }
 
@@ -238,6 +249,13 @@ export class Game {
 
   private update(dt: number) {
     this.time += dt;
+    // automatic quality fallback when the machine can't keep up
+    if (this.quality === 'high' && this.fps < 36) this.slowTime += dt;
+    else this.slowTime = 0;
+    if (this.slowTime > 5) {
+      this.quality = 'low';
+      this.message('Grafikqualität automatisch reduziert (G zum Umschalten)', '#9fe8ff');
+    }
     if (this.state === 'play') this.playerCtl.update(dt);
     else if (this.state === 'down') {
       this.downTimer -= dt;
@@ -250,6 +268,7 @@ export class Game {
     this.wanted.update(dt);
     this.missions.update(dt);
     this.particles.update(dt);
+    this.lighting.update(dt);
 
     // camera
     const pv = this.player.vehicle;
@@ -270,8 +289,6 @@ export class Game {
   private render() {
     const ctx = this.ctx;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(0, 0, this.width, this.height);
 
     const cam = this.camera;
     const z = cam.zoom * this.dpr;
@@ -287,10 +304,11 @@ export class Game {
     this.ai.drawPeds(ctx, view, true);
     this.combat.drawProjectiles(ctx);
     this.particles.draw(ctx, false);
-    this.cityRenderer.drawBuildings(ctx, view, cam.x, cam.y);
+    this.cityRenderer.drawBuildings(ctx, view, cam.x, cam.y, this.time, this.lighting.night, this.quality === 'high');
     this.particles.draw(ctx, true);
 
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.lighting.apply(ctx, this);
     this.hud.draw(ctx);
   }
 }

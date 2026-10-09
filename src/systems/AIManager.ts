@@ -10,6 +10,7 @@ import { angleDiff, chance, clamp, dist, dist2, pick, rand } from '../core/math'
 import { Ped } from '../entities/Ped';
 import { Vehicle } from '../entities/Vehicle';
 import { DIRS, LaneSpot, isVertical } from '../world/City';
+import { SUN, softSprite } from '../render/Textures';
 
 type View = { x0: number; y0: number; x1: number; y1: number };
 
@@ -74,7 +75,7 @@ export class AIManager {
     const p = g.spawnPed('cop', x, y);
     const swat = stars >= 4;
     p.shirt = swat ? '#2a2a2a' : '#1f3b8f';
-    p.hp = p.maxHp = swat ? 130 : 80;
+    p.hp = p.maxHp = swat ? 100 : 60;
     p.weapon = stars >= 3 ? 'smg' : 'pistol';
     p.give(p.weapon, 9999);
     p.state = stars > 0 ? 'chase' : 'wander';
@@ -182,7 +183,7 @@ export class AIManager {
           cop.vehicle = v;
           v.driver = cop;
           v.siren = true;
-          this.policeSpawnTimer = 3.2 - stars * 0.4;
+          this.policeSpawnTimer = 5.5 - stars * 0.5;
         }
       }
       if (copFoot < POLICE_FOOT_PER_STAR[stars]) {
@@ -434,6 +435,8 @@ export class AIManager {
     const d = dist(p.x, p.y, tx, ty);
     const los = g.city.lineOfSight(p.x, p.y, tx, ty);
     if (!los || d > range) {
+      // regaining sight takes a moment before they open fire again
+      p.reaction = Math.max(p.reaction, 0.6);
       if (t === g.player) this.chasePlayer(p, speed, dt);
       else this.moveTo(p, tx, ty, speed, dt);
       return;
@@ -445,7 +448,7 @@ export class AIManager {
     this.moveTo(p, sx, sy, 40, dt);
     p.angle = a;
     if (p.reaction <= 0) {
-      const inacc = p.kind === 'cop' ? 0.1 : 0.14;
+      const inacc = p.kind === 'cop' ? 0.22 : 0.16;
       g.combat.fire(p, a + rand(-inacc, inacc));
     }
   }
@@ -469,7 +472,7 @@ export class AIManager {
     const hostile = stars >= 2 || p.lastAttacker === pl;
 
     // Arrest attempt (low wanted levels)
-    if (stars <= 2) {
+    if (stars <= 1) {
       const pv = pl.vehicle;
       const reach = pv ? pv.model.length / 2 + 16 : 20;
       const canBust = pv ? pv.speed < 20 : true;
@@ -477,13 +480,13 @@ export class AIManager {
         p.bustTimer += dt;
         p.vx = p.vy = 0;
         p.angle = Math.atan2(py - p.y, px - p.x);
-        if (p.bustTimer > (pv ? 1.4 : 0.8)) g.playerDown('busted');
+        if (p.bustTimer > (pv ? 2.5 : 1.6)) g.playerDown('busted');
         return;
       }
       p.bustTimer = 0;
     }
-    if (hostile && !(stars <= 2 && d < 90)) this.combatBehaviour(p, pl, dt, 140, stars >= 3 ? 340 : 260);
-    else this.chasePlayer(p, 145, dt);
+    if (hostile && !(stars <= 1 && d < 90)) this.combatBehaviour(p, pl, dt, 140, stars >= 3 ? 340 : 260);
+    else this.chasePlayer(p, 135, dt);
   }
 
   // --- reactions ---------------------------------------------------------------
@@ -757,7 +760,7 @@ export class AIManager {
     const desired = Math.atan2(ty - v.y, tx - v.x);
     const diff = angleDiff(v.angle, desired);
     v.steer = clamp(diff * 2.5, -1, 1);
-    const aggression = 0.75 + g.wanted.stars * 0.05;
+    const aggression = 0.62 + g.wanted.stars * 0.05;
     v.throttle = Math.abs(diff) > 1.5 && v.speed > 140 ? 0.2 : aggression;
     v.handbrake = Math.abs(diff) > 1.0 && v.speed > 220;
 
@@ -813,11 +816,10 @@ function drawPed(ctx: CanvasRenderingContext2D, p: Ped, isPlayer: boolean, time:
     ctx.restore();
     return;
   }
-  // shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.beginPath();
-  ctx.ellipse(2, 2, 7, 9, 0, 0, Math.PI * 2);
-  ctx.fill();
+  // soft shadow cast along the sun direction (world space)
+  ctx.rotate(-p.angle);
+  ctx.drawImage(softSprite('rgba(0,0,0,0.55)'), SUN.x * 4 - 11, SUN.y * 4 - 11, 22, 22);
+  ctx.rotate(p.angle);
   // legs
   const moving = Math.hypot(p.vx, p.vy) > 5;
   const sw = moving ? Math.sin(p.walkPhase) * 5 : 0;
@@ -842,6 +844,15 @@ function drawPed(ctx: CanvasRenderingContext2D, p: Ped, isPlayer: boolean, time:
   ctx.strokeStyle = 'rgba(0,0,0,0.5)';
   ctx.lineWidth = 1;
   ctx.stroke();
+  // shoulder highlight / fold shading
+  ctx.fillStyle = 'rgba(255,255,255,0.16)';
+  ctx.beginPath();
+  ctx.ellipse(-1, -2.5, 3, 4.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath();
+  ctx.ellipse(-1, 4, 3.5, 3.5, 0, 0, Math.PI * 2);
+  ctx.fill();
   // arms
   ctx.fillStyle = p.skin;
   if (p.weapon !== 'fists') {

@@ -4,18 +4,24 @@
 // driving vehicles (incl. drive-by and nitro).
 // ---------------------------------------------------------------------------
 
-import { CRIME, PLAYER_RUN, PLAYER_WALK, WEAPONS, WEAPON_ORDER } from '../config';
+import { CRIME, PLAYER_RUN, PLAYER_WALK, SPRAY_COST, WEAPONS, WEAPON_ORDER } from '../config';
 import type { Game } from '../core/Game';
 import type { Controls } from '../core/Input';
-import { angleDiff, clamp, dist, dist2 } from '../core/math';
+import { angleDiff, clamp, dist, dist2, pick } from '../core/math';
 import { Vehicle } from '../entities/Vehicle';
 
 export class PlayerController {
+  private sprayCooldown = 0;
+
   constructor(private g: Game) {}
 
   update(dt: number) {
     const g = this.g, p = g.player, c = g.controls;
     if (!p.alive) return;
+    // slow health regeneration after staying out of harm for a while
+    if (g.time - p.lastHurt > 5 && p.hp < 70) p.hp = Math.min(70, p.hp + 6 * dt);
+    this.sprayCooldown -= dt;
+    if (p.vehicle) this.checkSprayShop();
     this.switchWeapons(c);
     if (c.interact) this.interact();
     if (p.vehicle) this.drive(c);
@@ -108,6 +114,29 @@ export class PlayerController {
       const off = v.model.length / 2 + 6;
       g.combat.fire(p, a, { x: v.x + Math.cos(a) * off, y: v.y + Math.sin(a) * off }, v);
     }
+  }
+
+  /** Drive into a spray shop: lose the wanted level, repair and repaint the car. */
+  private checkSprayShop() {
+    const g = this.g, v = g.player.vehicle!;
+    if (this.sprayCooldown > 0 || v.destroyed) return;
+    const shop = g.city.sprayShops.find((s) => dist2(s.x, s.y, v.x, v.y) < 46 * 46);
+    if (!shop || v.speed > 160) return;
+    if (g.wanted.stars === 0 && v.hp >= v.model.hp) return;
+    this.sprayCooldown = 5;
+    if (g.money < SPRAY_COST) {
+      g.message(`Spray-Shop: Du brauchst $${SPRAY_COST}.`, '#ff9a1a');
+      return;
+    }
+    g.money -= SPRAY_COST;
+    const hadStars = g.wanted.stars > 0;
+    g.wanted.clear();
+    v.hp = v.model.hp;
+    v.burning = 0;
+    const others = v.model.colors.filter((c) => c !== v.color);
+    if (!v.isPolice && others.length) v.color = pick(others);
+    g.bigText('NEU LACKIERT', hadStars ? 'Die Polizei sucht jetzt einen anderen Wagen' : 'Wagen repariert', '#ff9a1a', 2.5);
+    g.sound.pickup();
   }
 
   private interact() {

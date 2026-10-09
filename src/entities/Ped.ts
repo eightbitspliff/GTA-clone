@@ -51,6 +51,8 @@ export class Ped {
   marked = false;
   lastAttacker: Ped | null = null;
   bustTimer = 0;
+  /** game time of last damage taken (for health regeneration) */
+  lastHurt = -999;
   /** Turf-war enemy faction this ped fights regardless of player respect. */
   warWith: FactionId | -1 = -1;
 
